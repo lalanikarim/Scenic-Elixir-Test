@@ -1,4 +1,6 @@
 defmodule ScenicTest do
+  import Supervisor.Spec, warn: false
+
   @moduledoc """
   Starter application using the Scenic framework.
   """
@@ -9,7 +11,8 @@ defmodule ScenicTest do
 
     # start the application with the viewport
     children = [
-      {Scenic, viewports: [main_viewport_config]}
+      # supervisor(Scenic, [viewports: [main_viewport_config]])
+      %{ id: Scenic, start: {Scenic, :start_link, [[main_viewport_config]]}}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one)
