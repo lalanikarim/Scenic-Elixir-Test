@@ -10,10 +10,10 @@ defmodule ScenicTest.Scene.Home do
   # import Scenic.Components
 
   @text_size 24
-  @step_size 1000
-  @zoom_factor 0.4
+  @step_size 255
+  @zoom_factor 0.25
   @zoom 4.0 * @zoom_factor
-  @offset {0 * @zoom_factor, 0}
+  @offset {0, 0}
   @julia_coord {-0.8, -0.156}
 
   # ============================================================================
@@ -66,18 +66,20 @@ defmodule ScenicTest.Scene.Home do
     a = (x + offx - width / 2.0) / width * 4.0 / @zoom
     b = (y + offy - height / 2.0) / height * 4.0 / ar / @zoom
 
-    if(abs(a) > 2.0 or abs(b) > 0 or x > width or y > height) do
+    if(magnitude(point) > 2.0 or x > width or y > height) do
       {false, 0}
     end
 
     point = {a, b}
-    # check_mandelbrot(point, point, 1)
+    #check_mandelbrot(point, point, 1)
     check_mandelbrot(point, @julia_coord, 1)
   end
 
-  defp check_mandelbrot(point, orig, step) do
-    {a, b} = point
+  defp magnitude({a, b}) do
+    :math.sqrt(a * a + b * b)
+  end
 
+  defp check_mandelbrot(point, orig, step) do
     _notes = """
           (x,y) = a+bi
           (a+bi)^2 = aa + 2abi - bb
@@ -89,10 +91,10 @@ defmodule ScenicTest.Scene.Home do
       255 iterations
     """
 
-    if(abs(a) > 16.0 or abs(b) > 16.0 or step > @step_size) do
+    if magnitude(point) > 2.0 or step > @step_size do
       {false, step}
     else
-      if abs(a) <= 16.0 and abs(b) <= 16.0 and step >= @step_size do
+      if magnitude(point) <= 2.0 and step >= @step_size do
         {true, step}
       else
         point
@@ -124,12 +126,12 @@ defmodule ScenicTest.Scene.Home do
   end
 
   def handle_event(event, _from, scene) do
-    Logger.info("Received event: #{inspect(event)}")
+    IO.puts("Received event: #{inspect(event)}")
     {:noreply, scene}
   end
 
   def handle_input(input, id, scene) do
-    Logger.info("Received input: #{inspect(input)}")
+    IO.puts("Received input: #{inspect(input)}")
     {:noreply, scene}
   end
 end
