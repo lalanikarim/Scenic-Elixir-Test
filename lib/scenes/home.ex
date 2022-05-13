@@ -10,11 +10,15 @@ defmodule ScenicTest.Scene.Home do
   # import Scenic.Components
 
   @text_size 24
-  @step_size 255
+  @size Application.get_env(:scenic_test, :viewport)[:size]
+  @step_size 64*2
+  # @step_size 255
   @zoom_factor 0.25
   @zoom 4.0 * @zoom_factor
   @offset {0, 0}
   @julia_coord {-0.8, -0.156}
+  @graph Graph.build(clear_color: :grey)
+  |> add_specs_to_graph([rect_spec(@size)])
 
   # ============================================================================
   # setup
@@ -23,39 +27,73 @@ defmodule ScenicTest.Scene.Home do
   def init(scene, _param, _opts) do
     # get the width and height of the viewport. This is to demonstrate creating
     # a transparent full-screen rectangle to catch user input
-    {:ok, %ViewPort{size: {width, height}}} = ViewPort.info(scene.viewport)
+    IO.inspect(@size)
+    {width, height} = @size
 
     graph =
-      Graph.build(font: :roboto, font_size: @text_size, clear_color: :grey)
-      |> add_specs_to_graph([
-        rect_spec({width, height})
-      ])
-      |> plot_mandelbrot({width, height})
+      @graph
+      # |> plot_mandelbrot({width, height})
 
     scene =
       scene
       |> assign(graph: graph)
       |> push_graph(graph)
-
+      
+    IO.inspect(self())
+    plot_mandelbrot(@size)
     {:ok, scene}
   end
+  
+  defp process_block(_pos,{_,0}) do
+  end
 
-  defp plot_mandelbrot(graph, screen) do
-    {width, height} = screen
+  defp process_block(_pos,{0,_}) do
+  end
+
+  defp process_block({x,y} = pos, {1,1}) do
+    {_,steps} = is_mandelbrot(pos,@size)
+    ch = floor((@step_size - steps) / @step_size * 255)
+    # IO.puts("Plotting: #{x},#{y}")
+    GenServer.cast(self(),{:plot,pos,ch})
+    # graph
+    # |> circle(1, fill: {ch,ch,ch}, translate: pos)
+  end
+
+  defp process_block({x,y}, {width,height}) do
+    midx = div(width,2)
+    midy = div(height,2)
+    # IO.puts("Spawning: #{inspect pos},#{inspect dim}")
+    process_block({x,y},{midx,midy})
+    process_block({x+midx,y},{width-midx,midy})
+    process_block({x,y+midy},{midx,height-midy})
+    process_block({x+midx,y+midy},{width-midx,height-midy})
+  end
+
+  def plot_mandelbrot(screen) do
+    # {width, height} = screen
 
     IO.inspect({"Start Computation: ", :calendar.local_time()})
 
-    points =
-      Enum.flat_map(0..width, fn x ->
-        Enum.map(0..height, fn y -> {x, y} end)
-      end)
-      |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
+    # points =
+    #   Enum.flat_map(0..width, fn x ->
+    #     Enum.map(0..height, fn y -> {x, y} end)
+    #   end)
+    #   |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
 
     IO.inspect({"End Computation: ", :calendar.local_time()})
 
-    updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
+    #updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
+    # updated = plot(graph,points,screen)
+    process_block({0,0},@size)
     IO.inspect({"End Rendering: ", :calendar.local_time()})
-    updated
+  end
+  
+  defp plot(graph,[],_view), do: graph
+  
+  defp plot(graph,[head|tail],view) do 
+    graph 
+    |> plot_point(head,view)
+    |> plot(tail,view)
   end
 
   defp is_mandelbrot(point, screen) do
@@ -124,14 +162,27 @@ defmodule ScenicTest.Scene.Home do
     graph
     |> circle(1, fill: {ch, ch, ch}, translate: point)
   end
-
-  def handle_event(event, _from, scene) do
-    IO.puts("Received event: #{inspect(event)}")
+  
+  def handle_cast({:process,pos,dim} = msg, scene) do
+    # IO.inspect msg
+    process_block(pos,dim)
+    {:noreply, scene, :hibernate}
+  end
+  def handle_cast({:plot,point,ch} = msg,%{assigns: %{graph: graph}} = scene) do
+    # IO.inspect msg
+    graph = 
+      graph
+      |> circle(1, fill: {ch,ch,ch}, translate: point)
+    scene = 
+      scene
+      |> assign(graph: graph)
+      |> push_graph(graph)
+    {:noreply, scene, :hibernate}
+  end
+  
+  def handle_cast(msg, scene) do
+    IO.puts("Received MSG: #{inspect msg}")
     {:noreply, scene}
   end
 
-  def handle_input(input, id, scene) do
-    IO.puts("Received input: #{inspect(input)}")
-    {:noreply, scene}
-  end
 end
