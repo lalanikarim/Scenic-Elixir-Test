@@ -5,7 +5,7 @@ use Mix.Config
 # Configure the main viewport for the Scenic application
 config :scenic_test, :viewport, %{
   name: :main_viewport,
-  size: {300, 200},
+  size: {400, 300},
   default_scene: {ScenicTest.Scene.Home, nil},
   drivers: [
     %{

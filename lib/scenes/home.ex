@@ -3,13 +3,9 @@ defmodule ScenicTest.Scene.Home do
   require Logger
 
   alias Scenic.Graph
-  alias Scenic.ViewPort
-  alias Scenic.Script
 
   import Scenic.Primitives
-  # import Scenic.Components
 
-  @text_size 24
   @size Application.get_env(:scenic_test, :viewport)[:size]
   @step_size 64*2
   # @step_size 255
@@ -25,10 +21,6 @@ defmodule ScenicTest.Scene.Home do
 
   # --------------------------------------------------------
   def init(scene, _param, _opts) do
-    # get the width and height of the viewport. This is to demonstrate creating
-    # a transparent full-screen rectangle to catch user input
-    IO.inspect(@size)
-    {width, height} = @size
 
     graph =
       @graph
@@ -53,7 +45,6 @@ defmodule ScenicTest.Scene.Home do
   defp process_block({x,y} = pos, {1,1}) do
     {_,steps} = is_mandelbrot(pos,@size)
     ch = floor((@step_size - steps) / @step_size * 255)
-    # IO.puts("Plotting: #{x},#{y}")
     GenServer.cast(self(),{:plot,pos,ch})
     # graph
     # |> circle(1, fill: {ch,ch,ch}, translate: pos)
@@ -62,16 +53,13 @@ defmodule ScenicTest.Scene.Home do
   defp process_block({x,y}, {width,height}) do
     midx = div(width,2)
     midy = div(height,2)
-    # IO.puts("Spawning: #{inspect pos},#{inspect dim}")
-    process_block({x,y},{midx,midy})
-    process_block({x+midx,y},{width-midx,midy})
-    process_block({x,y+midy},{midx,height-midy})
-    process_block({x+midx,y+midy},{width-midx,height-midy})
+    GenServer.cast(self(),{:process,{x,y},{midx,midy}})
+    GenServer.cast(self(),{:process,{x+midx,y},{width-midx,midy}})
+    GenServer.cast(self(),{:process,{x,y+midy},{midx,height-midy}})
+    GenServer.cast(self(),{:process,{x+midx,y+midy},{width-midx,height-midy}})
   end
 
   def plot_mandelbrot(screen) do
-    # {width, height} = screen
-
     IO.inspect({"Start Computation: ", :calendar.local_time()})
 
     # points =
@@ -96,21 +84,19 @@ defmodule ScenicTest.Scene.Home do
     |> plot(tail,view)
   end
 
-  defp is_mandelbrot(point, screen) do
+  defp is_mandelbrot({x,y}, screen) do
     {width, height} = screen
-    {x, y} = point
+    if(magnitude({x,y}) > 2.0 or x > width or y > height) do
+      {false, 0}
+    end
+
     {offx, offy} = @offset
     ar = width / height
     a = (x + offx - width / 2.0) / width * 4.0 / @zoom
     b = (y + offy - height / 2.0) / height * 4.0 / ar / @zoom
 
-    if(magnitude(point) > 2.0 or x > width or y > height) do
-      {false, 0}
-    end
-
-    point = {a, b}
     #check_mandelbrot(point, point, 1)
-    check_mandelbrot(point, @julia_coord, 1)
+    check_mandelbrot({a,b}, @julia_coord, 1)
   end
 
   defp magnitude({a, b}) do
@@ -164,20 +150,30 @@ defmodule ScenicTest.Scene.Home do
   end
   
   def handle_cast({:process,pos,dim} = msg, scene) do
-    # IO.inspect msg
     process_block(pos,dim)
-    {:noreply, scene, :hibernate}
+    {:noreply, scene}
   end
-  def handle_cast({:plot,point,ch} = msg,%{assigns: %{graph: graph}} = scene) do
-    # IO.inspect msg
+  
+  def handle_cast(:finish, %{assigns: %{graph: graph}} = scene) do
+    IO.inspect({"DONE", :calendar.local_time()})
+    scene =
+      scene
+      |> push_graph(graph)
+    {:noreply,scene}
+  end
+
+  def handle_cast({:plot,{x,y} = point,ch} = msg,%{assigns: %{graph: graph}} = scene) do
     graph = 
       graph
       |> circle(1, fill: {ch,ch,ch}, translate: point)
     scene = 
       scene
       |> assign(graph: graph)
-      |> push_graph(graph)
-    {:noreply, scene, :hibernate}
+      # |> push_graph(graph)
+    if {x + 1,y + 1} == @size do
+      GenServer.cast(self(),:finish)
+    end
+    {:noreply, scene}
   end
   
   def handle_cast(msg, scene) do
