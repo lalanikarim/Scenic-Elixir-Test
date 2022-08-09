@@ -14,17 +14,14 @@ defmodule ScenicTest.Scenic.PreReq do
       end)
       |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
 
-    #updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
-
-    IO.inspect({"Start Computation: ", :calendar.local_time()})
+    IO.inspect({"Start Composition: ", :calendar.local_time()})
     updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
-    IO.inspect({"Start Computation: ", :calendar.local_time()})
+    IO.inspect({"End Composition: ", :calendar.local_time()})
 
     updated
   end
 
-  def is_mandelbrot({x,y}, screen) do
-    {width, height} = screen
+  def is_mandelbrot({x,y}, {width,height}) do
     if(magnitude({x,y}) > 2.0 or x > width or y > height) do
       {false, 0}
     end
@@ -84,6 +81,7 @@ defmodule ScenicTest.Scenic.PreReq do
     |> circle(1, fill: {ch, ch, ch}, translate: {x,y})
   end
 end
+
 defmodule ScenicTest.Scene.Home do
   use Scenic.Scene
   require Logger
@@ -112,94 +110,7 @@ defmodule ScenicTest.Scene.Home do
       scene
       |> assign(graph: graph)
       |> push_graph(graph)
-      
-    IO.inspect(self())
 
     {:ok, scene}
   end
-  
-  defp process_block(_pos,{_,0}) do
-  end
-
-  defp process_block(_pos,{0,_}) do
-  end
-
-  defp process_block({_x,_y} = pos, {1,1}) do
-    {_,steps} = is_mandelbrot(pos,@size)
-    ch = floor((@step_size - steps) / @step_size * 255)
-    GenServer.cast(self(),{:plot,pos,ch})
-    # graph
-    # |> circle(1, fill: {ch,ch,ch}, translate: pos)
-  end
-
-  defp process_block({x,y}, {width,height}) do
-    midx = div(width,2)
-    midy = div(height,2)
-    GenServer.cast(self(),{:process,{x,y},{midx,midy}})
-    GenServer.cast(self(),{:process,{x+midx,y},{width-midx,midy}})
-    GenServer.cast(self(),{:process,{x,y+midy},{midx,height-midy}})
-    GenServer.cast(self(),{:process,{x+midx,y+midy},{width-midx,height-midy}})
-  end
-
-  def plot_mandelbrot(_screen) do
-    IO.inspect({"Start Computation: ", :calendar.local_time()})
-
-    # points =
-    #   Enum.flat_map(0..width, fn x ->
-    #     Enum.map(0..height, fn y -> {x, y} end)
-    #   end)
-    #   |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
-
-    IO.inspect({"End Computation: ", :calendar.local_time()})
-
-    #updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
-    # updated = plot(graph,points,screen)
-    process_block({0,0},@size)
-    IO.inspect({"End Rendering: ", :calendar.local_time()})
-  end
-
-  def plot_mandelbrot(graph,{width,height} = screen) do
-    points =
-      Enum.flat_map(0..width, fn x ->
-        Enum.map(0..height, fn y -> {x, y} end)
-      end)
-      |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
-
-    #updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
-    List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
-    #updated = plot(graph,points,screen)
-  end
-  
-  def handle_cast({:process,pos,dim} = _msg, scene) do
-    process_block(pos,dim)
-    {:noreply, scene}
-  end
-  
-  def handle_cast(:finish, %{assigns: %{graph: graph}} = scene) do
-    IO.inspect({"DONE", :calendar.local_time()})
-    scene =
-      scene
-      |> push_graph(graph)
-    {:noreply,scene}
-  end
-
-  def handle_cast({:plot,{x,y} = point,ch} = _msg,%{assigns: %{graph: graph}} = scene) do
-    graph = 
-      graph
-      |> circle(1, fill: {ch,ch,ch}, translate: point)
-    scene = 
-      scene
-      |> assign(graph: graph)
-      # |> push_graph(graph)
-    if {x + 1,y + 1} == @size do
-      GenServer.cast(self(),:finish)
-    end
-    {:noreply, scene}
-  end
-  
-  def handle_cast(msg, scene) do
-    IO.puts("Received MSG: #{inspect msg}")
-    {:noreply, scene}
-  end
-
 end
