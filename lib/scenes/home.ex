@@ -1,90 +1,29 @@
-defmodule ScenicTest.Scene.Home do
-  use Scenic.Scene
-  require Logger
-
-  alias Scenic.Graph
-
+defmodule ScenicTest.Scenic.PreReq do
   import Scenic.Primitives
 
-  @size Application.get_env(:scenic_test, :viewport)[:size]
   @step_size 64*2
-  # @step_size 255
   @zoom_factor 0.25
   @zoom 4.0 * @zoom_factor
   @offset {0, 0}
   @julia_coord {-0.8, -0.156}
-  @graph Graph.build(clear_color: :grey)
-  |> add_specs_to_graph([rect_spec(@size)])
-
-  # ============================================================================
-  # setup
-
-  # --------------------------------------------------------
-  def init(scene, _param, _opts) do
-
-    graph =
-      @graph
-      # |> plot_mandelbrot({width, height})
-
-    scene =
-      scene
-      |> assign(graph: graph)
-      |> push_graph(graph)
-      
-    IO.inspect(self())
-    plot_mandelbrot(@size)
-    {:ok, scene}
-  end
   
-  defp process_block(_pos,{_,0}) do
-  end
-
-  defp process_block(_pos,{0,_}) do
-  end
-
-  defp process_block({x,y} = pos, {1,1}) do
-    {_,steps} = is_mandelbrot(pos,@size)
-    ch = floor((@step_size - steps) / @step_size * 255)
-    GenServer.cast(self(),{:plot,pos,ch})
-    # graph
-    # |> circle(1, fill: {ch,ch,ch}, translate: pos)
-  end
-
-  defp process_block({x,y}, {width,height}) do
-    midx = div(width,2)
-    midy = div(height,2)
-    GenServer.cast(self(),{:process,{x,y},{midx,midy}})
-    GenServer.cast(self(),{:process,{x+midx,y},{width-midx,midy}})
-    GenServer.cast(self(),{:process,{x,y+midy},{midx,height-midy}})
-    GenServer.cast(self(),{:process,{x+midx,y+midy},{width-midx,height-midy}})
-  end
-
-  def plot_mandelbrot(screen) do
-    IO.inspect({"Start Computation: ", :calendar.local_time()})
-
-    # points =
-    #   Enum.flat_map(0..width, fn x ->
-    #     Enum.map(0..height, fn y -> {x, y} end)
-    #   end)
-    #   |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
-
-    IO.inspect({"End Computation: ", :calendar.local_time()})
+  def plot_mandelbrot(graph,{width,height} = screen) do
+    points =
+      Enum.flat_map(0..width, fn x ->
+        Enum.map(0..height, fn y -> {x, y} end)
+      end)
+      |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
 
     #updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
-    # updated = plot(graph,points,screen)
-    process_block({0,0},@size)
-    IO.inspect({"End Rendering: ", :calendar.local_time()})
-  end
-  
-  defp plot(graph,[],_view), do: graph
-  
-  defp plot(graph,[head|tail],view) do 
-    graph 
-    |> plot_point(head,view)
-    |> plot(tail,view)
+
+    IO.inspect({"Start Computation: ", :calendar.local_time()})
+    updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
+    IO.inspect({"Start Computation: ", :calendar.local_time()})
+
+    updated
   end
 
-  defp is_mandelbrot({x,y}, screen) do
+  def is_mandelbrot({x,y}, screen) do
     {width, height} = screen
     if(magnitude({x,y}) > 2.0 or x > width or y > height) do
       {false, 0}
@@ -99,7 +38,7 @@ defmodule ScenicTest.Scene.Home do
     check_mandelbrot({a,b}, @julia_coord, 1)
   end
 
-  defp magnitude({a, b}) do
+  def magnitude({a, b}) do
     :math.sqrt(a * a + b * b)
   end
 
@@ -128,28 +67,110 @@ defmodule ScenicTest.Scene.Home do
     end
   end
 
-  defp next_iter(point, orig) do
+  def next_iter(point, orig) do
     {a, b} = point
     {oa, ob} = orig
     {a * a - b * b + oa, 2 * a * b + ob}
   end
 
-  defp plot_point(graph, data, view) do
-    {point, {_mandelbrot, steps}} = data
+  def plot_point(graph, {{x,y}, {_mandelbrot, steps}}, {width, height}) do
     ch = floor((@step_size - steps) / @step_size * 255)
-
-    {x, y} = point
-    {width, height} = view
 
     if x > width or y > height do
       graph
     end
 
     graph
-    |> circle(1, fill: {ch, ch, ch}, translate: point)
+    |> circle(1, fill: {ch, ch, ch}, translate: {x,y})
+  end
+end
+defmodule ScenicTest.Scene.Home do
+  use Scenic.Scene
+  require Logger
+
+  alias Scenic.Graph
+
+  import Scenic.Primitives
+  import ScenicTest.Scenic.PreReq
+
+  @size Application.get_env(:scenic_test, :viewport)[:size]
+  @step_size 64*2
+  @graph Graph.build(clear_color: :grey)
+    |> add_specs_to_graph([rect_spec(@size)])
+    |> plot_mandelbrot(@size)
+
+  # ============================================================================
+  # setup
+
+  # --------------------------------------------------------
+  def init(scene, _param, _opts) do
+
+    graph =
+      @graph
+
+    scene =
+      scene
+      |> assign(graph: graph)
+      |> push_graph(graph)
+      
+    IO.inspect(self())
+
+    {:ok, scene}
   end
   
-  def handle_cast({:process,pos,dim} = msg, scene) do
+  defp process_block(_pos,{_,0}) do
+  end
+
+  defp process_block(_pos,{0,_}) do
+  end
+
+  defp process_block({_x,_y} = pos, {1,1}) do
+    {_,steps} = is_mandelbrot(pos,@size)
+    ch = floor((@step_size - steps) / @step_size * 255)
+    GenServer.cast(self(),{:plot,pos,ch})
+    # graph
+    # |> circle(1, fill: {ch,ch,ch}, translate: pos)
+  end
+
+  defp process_block({x,y}, {width,height}) do
+    midx = div(width,2)
+    midy = div(height,2)
+    GenServer.cast(self(),{:process,{x,y},{midx,midy}})
+    GenServer.cast(self(),{:process,{x+midx,y},{width-midx,midy}})
+    GenServer.cast(self(),{:process,{x,y+midy},{midx,height-midy}})
+    GenServer.cast(self(),{:process,{x+midx,y+midy},{width-midx,height-midy}})
+  end
+
+  def plot_mandelbrot(_screen) do
+    IO.inspect({"Start Computation: ", :calendar.local_time()})
+
+    # points =
+    #   Enum.flat_map(0..width, fn x ->
+    #     Enum.map(0..height, fn y -> {x, y} end)
+    #   end)
+    #   |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
+
+    IO.inspect({"End Computation: ", :calendar.local_time()})
+
+    #updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
+    # updated = plot(graph,points,screen)
+    process_block({0,0},@size)
+    IO.inspect({"End Rendering: ", :calendar.local_time()})
+  end
+
+  def plot_mandelbrot(graph,{width,height} = screen) do
+    points =
+      Enum.flat_map(0..width, fn x ->
+        Enum.map(0..height, fn y -> {x, y} end)
+      end)
+      |> Enum.map(fn point -> {point, is_mandelbrot(point, screen)} end)
+
+    #updated = List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
+    List.foldr(points, graph, fn point, graph -> plot_point(graph, point, screen) end)
+    #updated = plot(graph,points,screen)
+  end
+  
+  def handle_cast({:process,pos,dim} = _msg, scene) do
     process_block(pos,dim)
     {:noreply, scene}
   end
@@ -162,7 +183,7 @@ defmodule ScenicTest.Scene.Home do
     {:noreply,scene}
   end
 
-  def handle_cast({:plot,{x,y} = point,ch} = msg,%{assigns: %{graph: graph}} = scene) do
+  def handle_cast({:plot,{x,y} = point,ch} = _msg,%{assigns: %{graph: graph}} = scene) do
     graph = 
       graph
       |> circle(1, fill: {ch,ch,ch}, translate: point)
