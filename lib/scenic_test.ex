@@ -12,7 +12,7 @@ defmodule ScenicTest do
     # start the application with the viewport
     children = [
       # supervisor(Scenic, [viewports: [main_viewport_config]])
-      %{ id: Scenic, start: {Scenic, :start_link, [[main_viewport_config]]}}
+      %{id: Scenic, start: {Scenic, :start_link, [[main_viewport_config]]}}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one)

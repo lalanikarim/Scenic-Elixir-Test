@@ -5,7 +5,7 @@ use Mix.Config
 # Configure the main viewport for the Scenic application
 config :scenic_test, :viewport, %{
   name: :main_viewport,
-  size: {600, 400},
+  size: {1200, 800},
   default_scene: {ScenicTest.Scene.Home, nil},
   theme: :light,
   drivers: [
@@ -19,13 +19,14 @@ config :scenic_test, :viewport, %{
 }
 
 config :scenic_test, :config, %{
-  render_steps: 50,
-  clip_steps: 10,
-  step_size: 20,
-  zoom: 1.0,
-  offset: {0,0},
+  render_steps: 100,
+  clip_start: 30,
+  clip_end: 64 * 4 - 1,
+  step_size: 64 * 4,
+  zoom: 1,
+  offset: {0, 0},
   julia_coord: {-0.8, -0.156},
-  render_julia: false
+  render_julia: true
 }
 
 config :scenic, :assets, module: ScenicTest.Assets
