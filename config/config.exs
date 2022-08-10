@@ -12,7 +12,7 @@ config :scenic_test, :viewport, %{
     %{
       module: Scenic.Driver.Local,
       name: :local,
-      window: [resizeable: false, title: "scenic_test"],
+      window: [resizeable: false, title: "Mandelbrot Set/Julia Set visualization"],
       on_close: :stop_system
     }
   ]
