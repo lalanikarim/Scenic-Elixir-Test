@@ -34,4 +34,13 @@ iex -S mix
 ```
 ## Example
 
+### Julia Set 
+
+`({-0.8,-0.156})`
+
 ![image](https://user-images.githubusercontent.com/1296705/184066319-2da44963-7a6d-4974-8475-ae569986656f.png)
+
+### Mandelbrot Set
+
+![image](https://user-images.githubusercontent.com/1296705/184066563-7b78d953-f270-483b-91b0-dba04bfda8cd.png)
+
