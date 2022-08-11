@@ -24,11 +24,11 @@ Under `config :scenic_test, :config`:
 
 ## Compiling and executing
 
-Ensure you have Elixir OTP installed.
+Ensure you have Elixir OTP installed and `mix` is accessible in the `PATH` environment.
 
 From the project folder, run the following commands:
 
 ```
-$> mix deps.get
-$> iex -S mix
+mix deps.get
+iex -S mix
 ```
