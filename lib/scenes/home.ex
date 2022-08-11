@@ -5,7 +5,7 @@ defmodule ScenicTest.Scene.Home do
   alias Scenic.Graph
 
   import Scenic.Primitives
-  import ScenicTest.Scenic.PreReq
+  import ScenicTest.Scene.PreReq
 
   @size Application.get_env(:scenic_test, :viewport)[:size]
   @chunks Application.get_env(:scenic_test, :config)[:render_steps]
@@ -13,39 +13,36 @@ defmodule ScenicTest.Scene.Home do
   @clip_start Application.get_env(:scenic_test, :config)[:clip_start]
   @clip_end Application.get_env(:scenic_test, :config)[:clip_end]
   @graph Graph.build(font: :roboto, font_size: 24)
-         |> add_specs_to_graph([rect_spec(@size)])
+    |> add_specs_to_graph([rect_spec(@size)])
+    |> text("0%", translate: {40, 40}, id: :progress_bar)
+
+  @points compute_mandelbrot(@size)
+      |> Enum.sort(fn {_, l_steps}, {_, r_steps} -> l_steps <= r_steps end)
+      |> Enum.filter(fn {_, steps} ->
+        steps >= @clip_start and steps <= @clip_end and steps <= @step_size
+      end)
 
   # ============================================================================
   # setup
 
   # --------------------------------------------------------
   def init(scene, _param, _opts) do
-    points =
-      compute_mandelbrot(@size)
-      # |> Enum.shuffle
-      |> Enum.sort(fn {_, l_steps}, {_, r_steps} -> l_steps <= r_steps end)
-      |> Enum.filter(fn {_, steps} ->
-        steps >= @clip_start and steps <= @clip_end and steps <= @step_size
-      end)
-
-    count = ceil(Enum.count(points) / @chunks)
-
-    points
-    |> map_to_spec(@size)
-    # to get @chunks number of chunks
-    |> Enum.chunk_every(count)
-    |> Enum.with_index(1)
-    |> Enum.each(fn {primitives, idx} -> send(self(), {:process, idx, primitives}) end)
 
     graph =
       @graph
-      |> text("0%", translate: {40, 40}, id: :progress_bar)
+
+    points = 
+      @points
+      |> map_to_spec(@size)
 
     scene =
       scene
-      |> assign(graph: graph, points_total: Enum.count(points), points_count: 0)
+      |> assign(graph: graph, points: points, points_total: Enum.count(points), points_count: 0)
       |> push_graph(graph)
 
+    send(self(),{:init})
+
+    IO.inspect({"Starting: ",self()})
     {:ok, scene}
   end
 
@@ -73,6 +70,27 @@ defmodule ScenicTest.Scene.Home do
       |> push_graph(graph)
 
     # IO.inspect({"Ready: ",:calendar.local_time(), id, count + Enum.count(primitives), total })
+    {:noreply, scene}
+  end
+
+  def handle_info({:init},%{assigns: %{points: points}} = scene) do
+
+    count = ceil(Enum.count(points) / @chunks)
+
+    points
+    |> Enum.chunk_every(count)
+    |> Enum.with_index(1)
+    |> Enum.each(fn {primitives, idx} -> send(self(), {:process, idx, primitives}) end)
+    {:noreply, scene}
+  end
+  def handle_info({:reset},scene) do
+    graph =
+      @graph
+    scene =
+      scene
+      |> assign(graph: graph, points_count: 0)
+      |> push_graph(graph)
+
     {:noreply, scene}
   end
 end

@@ -1,4 +1,4 @@
-defmodule ScenicTest.Scenic.PreReq do
+defmodule ScenicTest.Scene.PreReq do
   import Scenic.Primitives
 
   @step_size Application.get_env(:scenic_test, :config)[:step_size]
