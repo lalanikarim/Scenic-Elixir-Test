@@ -22,3 +22,13 @@ Under `config :scenic_test, :config`:
 7. julia_coord - coordinates from `Julia Set` to visualize.
 8. render_julia - when `true`, render `Julia Set`, otherwise, render `Mandelbrot Set`.
 
+## Compiling and executing
+
+Ensure you have Elixir OTP installed.
+
+From the project folder, run the following commands:
+
+```
+$> mix deps.get
+$> iex -S mix
+```
