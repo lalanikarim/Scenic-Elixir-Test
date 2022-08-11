@@ -32,3 +32,6 @@ From the project folder, run the following commands:
 mix deps.get
 iex -S mix
 ```
+## Example
+
+![image](https://user-images.githubusercontent.com/1296705/184066319-2da44963-7a6d-4974-8475-ae569986656f.png)
